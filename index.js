@@ -17,17 +17,43 @@ const projects = [
   }
 ];
 
+server.use((req, res, next) => {
+  console.log(`Metodo: ${req.method}; URL: ${req.url}`);
+
+  next();
+
+  console.count(`Request`);
+});
+
+function checkProjectExists(req, res, next) {
+  if (!req.body.title) {
+    return res.status(400).json({ error: "Project title is required" });
+  }
+
+  return next();
+}
+
+function checkProjectInArray(req, res, next) {
+  const project = projects[req.params.id];
+
+  if (!project) {
+    return res.status(400).json({ error: "Project does not exists" });
+  }
+
+  req.project = project;
+
+  return next();
+}
+
 server.get("/projects", (req, res) => {
   return res.json(projects);
 });
 
-server.get("/projects/:id", (req, res) => {
-  const { id } = req.params;
-
-  return res.json(projects[id]);
+server.get("/projects/:id", checkProjectInArray, (req, res) => {
+  return res.json(req.project);
 });
 
-server.post("/projects", (req, res) => {
+server.post("/projects", checkProjectExists, (req, res) => {
   const { id } = req.body;
   const { title } = req.body;
 
@@ -41,23 +67,39 @@ server.post("/projects", (req, res) => {
   return res.json(projects);
 });
 
-server.put("/projects/:id", (req, res) => {
+server.put(
+  "/projects/:id",
+  checkProjectInArray,
+  checkProjectExists,
+  (req, res) => {
+    const { id } = req.params;
+    const { title } = req.body;
+
+    const project = projects.find(p => p.id == id);
+
+    project.title = title;
+
+    return res.json(project);
+  }
+);
+
+server.delete("/projects/:id", checkProjectInArray, (req, res) => {
+  const { id } = req.params;
+
+  projects.splice(id, 1);
+
+  return res.send();
+});
+
+server.post("/projects/:id/tasks", checkProjectExists, (req, res) => {
   const { id } = req.params;
   const { title } = req.body;
 
   const project = projects.find(p => p.id == id);
 
-  project.title = title;
+  project.tasks.push(title);
 
   return res.json(project);
-});
-
-server.delete("/projects/:id", (req, res) => {
-  const { id } = req.params;
-
-  projects.splice(id, 1);
-
-  return res.json(projects);
 });
 
 server.listen(3333);
